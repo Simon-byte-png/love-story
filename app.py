@@ -29,8 +29,13 @@ if "messages" not in st.session_state:
 with st.sidebar:
     st.title("⚙️ 恋爱设定局")
     
-    # API Key 输入
-    api_key = st.text_input("DeepSeek API Key", type="password", help="请输入申请到的 API Key")
+    # 优先尝试从 Secrets (后台设置) 读取 API Key
+    if "DEEPSEEK_API_KEY" in st.secrets:
+        api_key = st.secrets["DEEPSEEK_API_KEY"]
+        st.success("已自动加载店长的 API Key 💳")
+    else:
+        # 如果后台没设置，才让用户自己填
+        api_key = st.text_input("DeepSeek API Key", type="password", help="请输入申请到的 API Key")
     
     st.markdown("---")
     st.subheader("💑 对象设定")
