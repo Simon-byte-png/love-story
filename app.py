@@ -13,7 +13,7 @@ hide_streamlit_style = """
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* header {visibility: hidden;}  <- 注释掉这行，让侧边栏箭头显示出来 */
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
