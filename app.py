@@ -11,9 +11,17 @@ st.set_page_config(
 # --- 隐藏右上角菜单和底部角标 ---
 hide_streamlit_style = """
 <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    /* header {visibility: hidden;}  <- 注释掉这行，让侧边栏箭头显示出来 */
+    /* 1. 隐藏右上角的菜单、GitHub按钮、Deploy按钮 */
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    
+    /* 2. 隐藏右上角的三道杠菜单 (老版本兼容) */
+    #MainMenu {visibility: hidden !important;}
+    
+    /* 3. 隐藏底部的 "Made with Streamlit" */
+    footer {visibility: hidden !important;}
+    
+    /* 4. 隐藏顶部彩条装饰 */
+    [data-testid="stDecoration"] {visibility: hidden !important;}
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
