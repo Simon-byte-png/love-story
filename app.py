@@ -11,33 +11,28 @@ st.set_page_config(
 # --- 隐藏右上角菜单和底部角标 ---
 hide_streamlit_style = """
 <style>
-    /* 1. 这里的 header 必须设为可见，否则左边的箭头也没了 */
+    /* 1. 这一行至关重要：必须让 Header 整体可见，否则左边箭头出不来 */
     header {
         visibility: visible !important;
-        background: transparent !important;
-    }
-
-    /* 2. 专门把右上角的 3个点菜单 和 GitHub 按钮 移出屏幕 */
-    [data-testid="stToolbar"] {
-        right: 2rem; /* 保持位置 */
-        display: none !important; /* 直接不显示 */
     }
     
-    /* 3. 隐藏顶部的彩条 */
-    [data-testid="stDecoration"] {
+    /* 2. 专门隐藏右上角的工具栏 (3个点、GitHub鸟、Deploy按钮) */
+    [data-testid="stToolbar"] {
+        visibility: hidden !important;
         display: none !important;
     }
 
-    /* 4. 隐藏底部的 footer */
+    /* 3. 隐藏底部的 footer */
     footer {
         visibility: hidden !important;
         display: none !important;
     }
     
-    /* 5. 手机端特殊处理：强制显示左上角侧边栏按钮 */
-    [data-testid="stSidebarNav"] {
-        display: block !important;
+    /* 4. 双重保险：强制显示左上角的侧边栏折叠按钮 */
+    [data-testid="stSidebarCollapsedControl"] {
         visibility: visible !important;
+        display: block !important;
+        color: #333333 !important; /* 强制设为深色，防止背景白字白看不见 */
     }
 </style>
 """
