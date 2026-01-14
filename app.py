@@ -8,36 +8,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 隐藏右上角菜单和底部角标 ---
-hide_streamlit_style = """
-<style>
-    /* 1. 这一行至关重要：必须让 Header 整体可见，否则左边箭头出不来 */
-    header {
-        visibility: visible !important;
-    }
-    
-    /* 2. 专门隐藏右上角的工具栏 (3个点、GitHub鸟、Deploy按钮) */
-    [data-testid="stToolbar"] {
-        visibility: hidden !important;
-        display: none !important;
-    }
-
-    /* 3. 隐藏底部的 footer */
-    footer {
-        visibility: hidden !important;
-        display: none !important;
-    }
-    
-    /* 4. 双重保险：强制显示左上角的侧边栏折叠按钮 */
-    [data-testid="stSidebarCollapsedControl"] {
-        visibility: visible !important;
-        display: block !important;
-        color: #333333 !important; /* 强制设为深色，防止背景白字白看不见 */
-    }
-</style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
 # 自定义一些CSS让界面更好看
 st.markdown("""
 <style>
