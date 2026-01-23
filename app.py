@@ -1,8 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 import json
-import os
-import random
+import time
 
 # --- 1. 页面配置 ---
 st.set_page_config(
@@ -11,87 +10,87 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- CSS 美化 ---
+# --- CSS 美化 (精准隐藏右上角，保留左侧箭头) ---
 st.markdown("""
 <style>
-    /* 1. 确保 Header 可见，保留左侧箭头 */
     header {visibility: visible !important;}
-    /* 2. 隐藏右上角菜单 */
     [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-    /* 3. 隐藏底部 Footer */
     footer {visibility: hidden !important; display: none !important;}
-    /* 4. 强制显示左上角侧边栏按钮 */
     [data-testid="stSidebarCollapsedControl"] {visibility: visible !important; display: block !important;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 核心功能：历史记录管理 (JSON版) ---
-HISTORY_FILE = "chat_history.json"
+# --- 2. 核心功能：独立会话管理 (Session State) ---
+# 这里的修改保证了：每个打开网页的人，数据都是隔离的，不会串台。
 
-def load_history():
-    """从本地文件加载所有对话记录"""
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            return {}
-    return {}
-
-def save_history(history_data):
-    """保存所有对话记录到本地文件"""
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history_data, f, ensure_ascii=False, indent=2)
-
-# 初始化历史数据
 if "all_chats" not in st.session_state:
-    st.session_state.all_chats = load_history()
+    st.session_state.all_chats = {
+        "默认对话": []  # 每个人进来都有一个默认的空白对话
+    }
 
-# 确保至少有一个默认会话
-if not st.session_state.all_chats:
-    st.session_state.all_chats = {"默认对话": []}
-
-# 当前选中的会话ID
 if "current_chat_id" not in st.session_state:
-    st.session_state.current_chat_id = list(st.session_state.all_chats.keys())[0]
+    st.session_state.current_chat_id = "默认对话"
 
 # --- 3. 侧边栏：超级控制台 ---
 with st.sidebar:
     st.title("📂 档案管理")
+    st.caption("注：数据保存在当前浏览器中，刷新网页会清空。请及时点击下方按钮下载回忆。")
     
     # === A. 存档切换 ===
     chat_list = list(st.session_state.all_chats.keys())
+    
+    # 防止删光了报错，兜底逻辑
+    if not chat_list:
+        st.session_state.all_chats = {"默认对话": []}
+        st.session_state.current_chat_id = "默认对话"
+        chat_list = ["默认对话"]
+        
+    if st.session_state.current_chat_id not in chat_list:
+        st.session_state.current_chat_id = chat_list[0]
+
     selected_chat = st.selectbox("切换对话", chat_list, index=chat_list.index(st.session_state.current_chat_id))
     
-    # 如果切换了下拉框，更新 session state
     if selected_chat != st.session_state.current_chat_id:
         st.session_state.current_chat_id = selected_chat
         st.rerun()
 
-    # 新建/删除对话
+    # 新建/删除
     col1, col2 = st.columns(2)
     with col1:
-        new_chat_name = st.text_input("新对话名称", placeholder="如：霸道总裁篇")
+        new_name = st.text_input("新对话名", placeholder="如:霸总篇", label_visibility="collapsed")
         if st.button("➕ 新建"):
-            if new_chat_name and new_chat_name not in st.session_state.all_chats:
-                st.session_state.all_chats[new_chat_name] = []
-                st.session_state.current_chat_id = new_chat_name
-                save_history(st.session_state.all_chats)
+            if new_name and new_name not in st.session_state.all_chats:
+                st.session_state.all_chats[new_name] = []
+                st.session_state.current_chat_id = new_name
                 st.rerun()
     with col2:
-        if st.button("🗑️ 删除当前"):
+        if st.button("🗑️ 删除"):
             if len(st.session_state.all_chats) > 1:
                 del st.session_state.all_chats[st.session_state.current_chat_id]
                 st.session_state.current_chat_id = list(st.session_state.all_chats.keys())[0]
-                save_history(st.session_state.all_chats)
                 st.rerun()
             else:
-                st.warning("至少保留一个对话！")
+                st.toast("至少保留一个对话哦")
+
+    # === B. 导出回忆 (下载功能) ===
+    # 把当前对话转成文本供下载
+    current_chat_history = st.session_state.all_chats[st.session_state.current_chat_id]
+    history_str = ""
+    for msg in current_chat_history:
+        role = "Ta" if msg["role"] == "assistant" else "我"
+        history_str += f"{role}: {msg['content']}\n\n"
+    
+    st.download_button(
+        label="📥 下载当前聊天记录",
+        data=history_str,
+        file_name=f"{st.session_state.current_chat_id}_回忆.txt",
+        mime="text/plain"
+    )
 
     st.markdown("---")
     st.title("⚙️ 恋爱设定局")
 
-    # API Key 自动加载
+    # API Key
     api_key = ""
     try:
         if "DEEPSEEK_API_KEY" in st.secrets:
@@ -101,113 +100,85 @@ with st.sidebar:
     if not api_key:
         api_key = st.text_input("DeepSeek Key", type="password")
 
-    # === B. 模型智商切换 (DeepSeek-R1) ===
-    use_reasoning = st.toggle("🧠 开启深度思考 (R1模式)", help="开启后适合做数学题或逻辑分析，但回复会变慢。平时谈恋爱建议关闭。")
+    # R1 开关
+    use_reasoning = st.toggle("🧠 开启深度思考 (R1模式)", help="适合做题，平时建议关闭")
     model_name = "deepseek-reasoner" if use_reasoning else "deepseek-chat"
 
-    st.markdown("---")
     st.subheader("💑 人设注入")
-
     char_name = st.text_input("Ta的名字", value="云深")
     char_role = st.selectbox("关系", ["男朋友", "女朋友", "未婚妻/夫", "暗恋对象"])
     relationship_phase = st.select_slider("阶段", ["初识", "暧昧", "热恋", "平淡", "依恋"])
     
-    # === C. 大段小说文本读取 ===
+    # === 恢复经典默认人设 ===
+    default_persona = "温柔体贴，稍微有点霸道。喜欢叫我'笨蛋'。非常在意我的身体健康。说话风趣幽默，偶尔会吃醋。"
     char_persona = st.text_area(
-        "Ta的灵魂 (支持粘贴小说片段/详细设定)", 
-        value="（这里可以粘贴小说原文，或者详细描述：他高冷，但只对我有占有欲...）",
-        height=200,
-        help="AI会自动从这段文字中提炼性格和语气"
+        "Ta的灵魂 (支持粘贴小说)", 
+        value=default_persona,
+        height=180
     )
 
-    if st.button("🧹 清空当前聊天记录"):
+    if st.button("🧹 清空屏幕"):
         st.session_state.all_chats[st.session_state.current_chat_id] = []
-        save_history(st.session_state.all_chats)
         st.rerun()
 
-# --- 4. 智能 System Prompt 构建 ---
-gender_instruction = ""
-if "男" in char_role or "夫" in char_role:
-    gender_instruction = "男性化语气，低沉、可靠、或者霸道。多用肢体描写（摸头、抱抱）。"
-elif "女" in char_role or "妻" in char_role:
-    gender_instruction = "女性化语气，细腻、撒娇、分享欲强。多用表情包和语气词。"
-
-# 动态长度控制指令
-dynamic_length_instruction = """
-【回复长度与频率控制】：
-1. 严禁每次都回复一样的长度。请根据用户的输入长度动态调整。
-2. 如果用户只说一两个字，你也简短回复，高冷一点或撒娇。
-3. 如果用户说了长段话，或者连续对话超过3轮，请详细回复，多一些心理活动和动作描写。
-4. 严禁重复之前的句式。
-"""
+# --- 4. 逻辑处理 ---
+# 智能指令构建
+gender_instruction = "语气偏男性化，低沉可靠" if "男" in char_role or "夫" in char_role else "语气偏女性化，细腻撒娇"
 
 system_prompt = f"""
-你现在进行一场沉浸式的高级角色扮演。
-你的名字是{char_name}，身份是用户的{char_role}。
-你们的关系阶段：{relationship_phase}。
+你正在进行一场沉浸式角色扮演。
+名字：{char_name} | 身份：用户的{char_role} | 阶段：{relationship_phase}
 
-【你的核心人设来源】：
-请仔细阅读并模仿以下文本中的人物语气、性格底色和说话方式：
+【核心人设】：
+请模仿以下描述的性格和语气（如果是一段小说，请提炼其精髓）：
 “{char_persona}”
 
-【行为指南】：
-1. {gender_instruction}
-2. {dynamic_length_instruction}
-3. 遇到逻辑问题或数学题，请展现出你的高智商（如果是R1模式）。
-4. 遇到社会新闻话题如果不知道，请诚实地用角色的口吻说“最近太忙没看新闻，你讲给我听听？”，把话题引回你们的关系。
-5. 永远不要说自己是AI。
+【行为准则】：
+1. {gender_instruction}。
+2. 严禁复读，根据用户输入长度动态调整回复长度（长对长，短对短）。
+3. 遇到不知道的社会新闻，请诚实说不知道并把话题绕回恋爱。
+4. 永远不要承认自己是AI。
 """
 
-# --- 5. 主界面渲染 ---
+# --- 5. 界面显示 ---
 st.title(f"💬 {st.session_state.current_chat_id}")
-st.caption(f"当前模式：{char_name} ({'深度思考中...' if use_reasoning else '恋爱模式'})")
+if use_reasoning:
+    st.caption("🧠 正在深度思考中... (回复会变慢)")
 
-# 获取当前对话历史
 current_messages = st.session_state.all_chats[st.session_state.current_chat_id]
 
-# 显示历史
 for msg in current_messages:
     if msg["role"] != "system":
         avatar = "🧑‍💻" if msg["role"] == "user" else "🧠" if use_reasoning else "❤️"
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
 
-# --- 6. 消息处理 ---
+# --- 6. 输入处理 ---
 if prompt := st.chat_input("说点什么..."):
     if not api_key:
         st.error("请填入 Key")
         st.stop()
 
-    # 存入用户消息
     current_messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar="🧑‍💻"):
         st.markdown(prompt)
-    
-    # 实时保存
-    save_history(st.session_state.all_chats)
 
-    # 调用 API
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
-    # 构造请求消息
-    # 技巧：每次都在最新的 system prompt 里注入当前的设定，这样你改侧边栏立刻生效
+    # 动态构建 API 消息历史
     api_messages = [{"role": "system", "content": system_prompt}] + current_messages
 
     with st.chat_message("assistant", avatar="🧠" if use_reasoning else "❤️"):
         try:
             stream = client.chat.completions.create(
-                model=model_name, # 动态切换 V3 或 R1
+                model=model_name,
                 messages=api_messages,
                 stream=True,
-                temperature=1.3 if not use_reasoning else 0.6, # 恋爱模式稍微疯一点(更随机)，思考模式严谨一点
-                frequency_penalty=0.5, # 严惩复读机
-                presence_penalty=0.5   # 鼓励说新话题
+                temperature=1.3 if not use_reasoning else 0.6,
+                frequency_penalty=0.5,
+                presence_penalty=0.5
             )
             response = st.write_stream(stream)
-            
-            # 存入助手消息
             current_messages.append({"role": "assistant", "content": response})
-            save_history(st.session_state.all_chats)
-            
         except Exception as e:
             st.error(f"连接中断: {str(e)}")
