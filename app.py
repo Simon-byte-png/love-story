@@ -1,7 +1,6 @@
 import streamlit as st
 from openai import OpenAI
 import json
-import time
 
 # --- 1. 页面配置 ---
 st.set_page_config(
@@ -21,8 +20,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 2. 核心功能：独立会话管理 (Session State) ---
-# 这里的修改保证了：每个打开网页的人，数据都是隔离的，不会串台。
-
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
         "默认对话": []  # 每个人进来都有一个默认的空白对话
@@ -100,9 +97,7 @@ with st.sidebar:
     if not api_key:
         api_key = st.text_input("DeepSeek Key", type="password")
 
-    # R1 开关
-    use_reasoning = st.toggle("🧠 开启深度思考 (R1模式)", help="适合做题，平时建议关闭")
-    model_name = "deepseek-reasoner" if use_reasoning else "deepseek-chat"
+    # R1 开关已移除
 
     st.subheader("💑 人设注入")
     char_name = st.text_input("Ta的名字", value="云深")
@@ -142,14 +137,13 @@ system_prompt = f"""
 
 # --- 5. 界面显示 ---
 st.title(f"💬 {st.session_state.current_chat_id}")
-if use_reasoning:
-    st.caption("🧠 正在深度思考中... (回复会变慢)")
 
 current_messages = st.session_state.all_chats[st.session_state.current_chat_id]
 
 for msg in current_messages:
     if msg["role"] != "system":
-        avatar = "🧑‍💻" if msg["role"] == "user" else "🧠" if use_reasoning else "❤️"
+        # 统一使用爱心头像，因为没有深度思考模式了
+        avatar = "🧑‍💻" if msg["role"] == "user" else "❤️"
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
 
@@ -168,13 +162,13 @@ if prompt := st.chat_input("说点什么..."):
     # 动态构建 API 消息历史
     api_messages = [{"role": "system", "content": system_prompt}] + current_messages
 
-    with st.chat_message("assistant", avatar="🧠" if use_reasoning else "❤️"):
+    with st.chat_message("assistant", avatar="❤️"):
         try:
             stream = client.chat.completions.create(
-                model=model_name,
+                model="deepseek-chat", # 强制锁定为 V3
                 messages=api_messages,
                 stream=True,
-                temperature=1.3 if not use_reasoning else 0.6,
+                temperature=1.3, # 保持高创造性
                 frequency_penalty=0.5,
                 presence_penalty=0.5
             )
