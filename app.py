@@ -112,11 +112,11 @@ st.markdown(f"""
 # --- 4. 核心功能：独立会话管理 (Session State) ---
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {
-        "默认对话": [] 
+        "开启love story~": [] 
     }
 
 if "current_chat_id" not in st.session_state:
-    st.session_state.current_chat_id = "默认对话"
+    st.session_state.current_chat_id = "开启love story~"
 
 # --- 5. 侧边栏：超级控制台 ---
 with st.sidebar:
@@ -129,9 +129,9 @@ with st.sidebar:
     
     # 兜底逻辑
     if not chat_list:
-        st.session_state.all_chats = {"默认对话": []}
-        st.session_state.current_chat_id = "默认对话"
-        chat_list = ["默认对话"]
+        st.session_state.all_chats = {"开启love story~": []}
+        st.session_state.current_chat_id = "开启love story~"
+        chat_list = ["开启love story~"]
         
     if st.session_state.current_chat_id not in chat_list:
         st.session_state.current_chat_id = chat_list[0]
@@ -189,15 +189,16 @@ with st.sidebar:
 
     st.subheader("💑 人设微调")
     char_name = st.text_input("Ta的名字", value="云深")
-    char_role = st.selectbox("关系", ["男朋友", "女朋友", "未婚妻/夫", "暗恋对象", "学长/学姐"])
+    char_role = st.selectbox("关系", ["女朋友", "男朋友", "未婚妻/夫", "暗恋对象", "学长/学姐"])
     relationship_phase = st.select_slider("阶段", ["初识", "暧昧", "热恋", "平淡", "依恋"])
     
     # 默认加载今日人设
-    char_persona = st.text_area(
-        "Ta的灵魂 (今日自动加载)", 
-        value=current_persona_desc,
-        height=250
-    )
+    with st.expander("✍️ 修改人设 (点击展开)"):
+        char_persona = st.text_area(
+            "Ta的灵魂 (今日自动加载)", 
+            value=current_persona_desc,
+            height=250
+        )
 
     if st.button("🧹 清空屏幕"):
         st.session_state.all_chats[st.session_state.current_chat_id] = []
@@ -229,7 +230,7 @@ current_messages = st.session_state.all_chats[st.session_state.current_chat_id]
 
 for msg in current_messages:
     if msg["role"] != "system":
-        avatar = "🧑‍🎓" if msg["role"] == "user" else "🦅" # 浙大求是鹰元素
+        avatar = "🧑‍💻" if msg["role"] == "user" else "❤️" # 还原经典头像
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
 
@@ -240,14 +241,14 @@ if prompt := st.chat_input("在紫金港的晚风中说点什么..."):
         st.stop()
 
     current_messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user", avatar="🧑‍🎓"):
+    with st.chat_message("user", avatar="🧑‍💻"):
         st.markdown(prompt)
 
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     api_messages = [{"role": "system", "content": system_prompt}] + current_messages
 
-    with st.chat_message("assistant", avatar="🦅"):
+    with st.chat_message("assistant", avatar="❤️"):
         try:
             stream = client.chat.completions.create(
                 model="deepseek-chat",
